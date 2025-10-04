@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>GeoGuessr Hint Game</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<style>
+  #map { height: 500px; margin-top: 20px; }
+  #hint-container { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+  #score { font-size: 18px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h2>Raad de locatie op basis van de hint!</h2>
+<div id="hint-container"></div>
+<div id="map"></div>
+<div id="score">Score: 0</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+// ----------------- DATA -----------------
+const locations = [
+  {
+    name: "Vliegveld",
+    hint: "Sommige vliegvelden liggen dicht bij de centrum van de stad waar het vliegveld naar vernoemd is. Bijvoorbeeld London City Airport ligt op nog geen 10 km van Londen. Andere vliegvelden zijn misleidend, en liggen ver bij de stad vandaan waar ze naar vernoemd zijn. Wij gaan naar het meest misleidende vliegveld (dat ligt nog circa 135 km hemelsbreed van de stad vandaan)",
+    lat: 48.77786604783219, 
+    lng: 4.186261187089951,
+    radius: 2
+  },
+  {
+    name: "Spongebob",
+    hint: "In deze straat woont spongebob",
+    lat: 51.53202603643356, 
+    lng: 4.271922364356801,
+    radius: 0.2
+  },
+  {
+    name: "Zuidelijke stad",
+    hint: "Dit is de meest zuidelijke stad ter wereld.",
+    lat: -54.8088106, 
+    lng: -68.3199749,
+    radius: 5
+  },
+  {
+    name: "Eiffeltoren",
+    hint: "Een beroemd ijzeren bouwwerk in Parijs, Frankrijk.",
+    lat: 48.8584,
+    lng: 2.2945,
+    radius: 0.3 // km
+  },
+  {
+    name: "Amsterdam Centraal",
+    hint: "Het belangrijkste treinstation in de hoofdstad van Nederland.",
+    lat: 52.3780,
+    lng: 4.9000,
+    radius: 0.3 // km
+  },
+  {
+    name: "Colosseum",
+    hint: "Een oud amfitheater in Rome waar gladiatoren vochten.",
+    lat: 41.8902,
+    lng: 12.4922,
+    radius: 0.3 // km
+  }
+];
+
+let score = 0;
+
+// ----------------- INIT MAP -----------------
+let map = L.map('map').setView([20, 0], 2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// ----------------- SELECT RANDOM LOCATION -----------------
+let currentLocation = locations[Math.floor(Math.random() * locations.length)];
+document.getElementById('hint-container').innerText = currentLocation.hint;
+
+// ----------------- CLICK EVENT -----------------
+map.on('click', function(e) {
+  let guessedLat = e.latlng.lat;
+  let guessedLng = e.latlng.lng;
+
+  let distance = getDistanceFromLatLonInKm(
+    currentLocation.lat,
+    currentLocation.lng,
+    guessedLat,
+    guessedLng
+  );
+
+  if(distance <= currentLocation.radius){
+      alert("Goed! Binnen het gebied!");
+      score += 1;
+      document.getElementById('score').innerText = "Score: " + score;
+      nextRound();
+  } else {
+      alert("Fout! Probeer het nog eens.");
+  }
+});
+
+// ----------------- HELPER FUNCTIES -----------------
+function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2) {
+  let R = 6371;
+  let dLat = deg2rad(lat2-lat1);
+  let dLon = deg2rad(lon2-lon1);
+  let a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+          Math.sin(dLon/2) * Math.sin(dLon/2);
+  let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function deg2rad(deg) {
+  return deg * (Math.PI/180);
+}
+
+// ----------------- VOLGENDE RONDE -----------------
+function nextRound(){
+  currentLocation = locations[Math.floor(Math.random() * locations.length)];
+  document.getElementById('hint-container').innerText = currentLocation.hint;
+  map.setView([20, 0], 2); // reset zoom en center
+}
+
+</script>
+</body>
+</html>
