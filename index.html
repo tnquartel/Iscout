@@ -124,10 +124,19 @@
     // ----------------- VUL DE LOCATIES IN DE LIJST -----------------
     const locationsList = document.getElementById('locations-list').getElementsByTagName('ul')[0];
     
+    // Laad opgeslagen correcte locaties
+    const correctLocations = JSON.parse(localStorage.getItem('correctLocations')) || [];
+
     locations.forEach((location, index) => {
       const li = document.createElement('li');
       li.classList.add('location-item');
       li.innerHTML = `${index + 1}. ${location.name}`;
+      
+      // Als de locatie al correct is, voeg de juiste styling toe
+      if (correctLocations.includes(location.name)) {
+        li.classList.add('correct');
+        li.innerHTML += ' <span class="checkmark">✔</span>'; // Voeg een vinkje toe
+      }
       
       // Maak de hint div
       const hint = document.createElement('div');
@@ -188,6 +197,10 @@
           locationItem.classList.add('correct');
           locationItem.innerHTML += ' <span class="checkmark">✔</span>'; // Voeg een vinkje toe
 
+          // Voeg de locatie toe aan localStorage als correct
+          correctLocations.push(currentLocation.name);
+          localStorage.setItem('correctLocations', JSON.stringify(correctLocations));
+
           // Verberg de hint en reset de geselecteerde locatie
           document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
           nextRound();
@@ -213,7 +226,7 @@
     }
 
     // ----------------- VOLGENDE RONDE -----------------
-    function nextRound() {
+    function nextRound(){
       currentLocation = null; // Reset de locatie
       document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
       map.setView([20, 0], 2); // Reset zoom en center
