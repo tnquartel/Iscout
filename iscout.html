@@ -1,127 +1,224 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8">
-<title>GeoGuessr Hint Game</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<style>
-  #map { height: 500px; margin-top: 20px; }
-  #hint-container { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
-  #score { font-size: 18px; margin-top: 10px; }
-</style>
+  <meta charset="UTF-8">
+  <title>GeoGuessr Hint Game</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 500px; margin-top: 20px; }
+    #hint-container { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+    #score { font-size: 18px; margin-top: 10px; }
+    #locations-list { margin-top: 20px; }
+    .location-item {
+      cursor: pointer;
+      list-style-type: none;
+      padding: 8px;
+      background-color: #f0f0f0;
+      margin: 5px 0;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    .location-item:hover {
+      background-color: #ddd;
+    }
+    .location-item.selected {
+      background-color: #a0c8e0; /* Blauw */
+    }
+    .location-item.correct {
+      background-color: #78c778; /* Groen voor goed antwoord */
+      pointer-events: none; /* Maakt de locatie niet meer aanklikbaar */
+    }
+    .hint-text {
+      display: none;
+      margin-top: 5px;
+      font-style: italic;
+    }
+    .hint-text.show {
+      display: block;
+    }
+    .checkmark {
+      margin-left: 10px;
+      color: white;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
 
-<h2>Raad de locatie op basis van de hint!</h2>
-<div id="hint-container"></div>
-<div id="map"></div>
-<div id="score">Score: 0</div>
+  <h2>Raad de locatie op basis van de hint!</h2>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-// ----------------- DATA -----------------
-const locations = [
-  {
-    name: "Vliegveld",
-    hint: "Sommige vliegvelden liggen dicht bij de centrum van de stad waar het vliegveld naar vernoemd is. Bijvoorbeeld London City Airport ligt op nog geen 10 km van Londen. Andere vliegvelden zijn misleidend, en liggen ver bij de stad vandaan waar ze naar vernoemd zijn. Wij gaan naar het meest misleidende vliegveld (dat ligt nog circa 135 km hemelsbreed van de stad vandaan)",
-    lat: 48.77786604783219, 
-    lng: 4.186261187089951,
-    radius: 2
-  },
-  {
-    name: "Spongebob",
-    hint: "In deze straat woont spongebob",
-    lat: 51.53202603643356, 
-    lng: 4.271922364356801,
-    radius: 0.2
-  },
-  {
-    name: "Zuidelijke stad",
-    hint: "Dit is de meest zuidelijke stad ter wereld.",
-    lat: -54.8088106, 
-    lng: -68.3199749,
-    radius: 5
-  },
-  {
-    name: "Eiffeltoren",
-    hint: "Een beroemd ijzeren bouwwerk in Parijs, Frankrijk.",
-    lat: 48.8584,
-    lng: 2.2945,
-    radius: 0.3 // km
-  },
-  {
-    name: "Amsterdam Centraal",
-    hint: "Het belangrijkste treinstation in de hoofdstad van Nederland.",
-    lat: 52.3780,
-    lng: 4.9000,
-    radius: 0.3 // km
-  },
-  {
-    name: "Colosseum",
-    hint: "Een oud amfitheater in Rome waar gladiatoren vochten.",
-    lat: 41.8902,
-    lng: 12.4922,
-    radius: 0.3 // km
-  }
-];
+  <!-- Genummerde lijst van locaties -->
+  <div id="locations-list">
+    <ul>
+      <!-- Dynamisch de locaties toevoegen -->
+    </ul>
+  </div>
 
-let score = 0;
+  <div id="map"></div>
+  <div id="score">Score: 0</div>
 
-// ----------------- INIT MAP -----------------
-let map = L.map('map').setView([20, 0], 2);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // ----------------- DATA -----------------
+    const locations = [
+      {
+        name: "Lego",
+        hint: "In dit land worden de meeste banden gemaakt",
+        lat: 56.02453877107302, 
+        lng: 10.521098060541842,
+        radius: 300
+      },
+      {
+        name: "Vliegveld",
+        hint: "Sommige vliegvelden liggen dicht bij de centrum van de stad waar het vliegveld naar vernoemd is. Bijvoorbeeld London City Airport ligt op nog geen 10 km van Londen. Andere vliegvelden zijn misleidend, en liggen ver bij de stad vandaan waar ze naar vernoemd zijn. Wij gaan naar het meest misleidende vliegveld (dat ligt nog circa 135 km hemelsbreed van de stad vandaan)",
+        lat: 48.77786604783219, 
+        lng: 4.186261187089951,
+        radius: 2
+      },
+      {
+        name: "Spongebob",
+        hint: "In deze straat woont spongebob",
+        lat: 51.53202603643356, 
+        lng: 4.271922364356801,
+        radius: 0.2
+      },
+      {
+        name: "Zuidelijke stad",
+        hint: "Dit is de meest zuidelijke stad ter wereld.",
+        lat: -54.8088106, 
+        lng: -68.3199749,
+        radius: 5
+      },
+      {
+        name: "Eiffeltoren",
+        hint: "Een beroemd ijzeren bouwwerk in Parijs, Frankrijk.",
+        lat: 48.8584,
+        lng: 2.2945,
+        radius: 0.3 // km
+      },
+      {
+        name: "Amsterdam Centraal",
+        hint: "Het belangrijkste treinstation in de hoofdstad van Nederland.",
+        lat: 52.3780,
+        lng: 4.9000,
+        radius: 0.3 // km
+      },
+      {
+        name: "Colosseum",
+        hint: "Een oud amfitheater in Rome waar gladiatoren vochten.",
+        lat: 41.8902,
+        lng: 12.4922,
+        radius: 0.3 // km
+      }
+    ];
 
-// ----------------- SELECT RANDOM LOCATION -----------------
-let currentLocation = locations[Math.floor(Math.random() * locations.length)];
-document.getElementById('hint-container').innerText = currentLocation.hint;
+    let score = 0;
+    let currentLocation = null;
 
-// ----------------- CLICK EVENT -----------------
-map.on('click', function(e) {
-  let guessedLat = e.latlng.lat;
-  let guessedLng = e.latlng.lng;
+    // ----------------- INIT MAP -----------------
+    let map = L.map('map').setView([20, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-  let distance = getDistanceFromLatLonInKm(
-    currentLocation.lat,
-    currentLocation.lng,
-    guessedLat,
-    guessedLng
-  );
+    // ----------------- VUL DE LOCATIES IN DE LIJST -----------------
+    const locationsList = document.getElementById('locations-list').getElementsByTagName('ul')[0];
+    
+    locations.forEach((location, index) => {
+      const li = document.createElement('li');
+      li.classList.add('location-item');
+      li.innerHTML = `${index + 1}. ${location.name}`;
+      
+      // Maak de hint div
+      const hint = document.createElement('div');
+      hint.classList.add('hint-text');
+      hint.innerText = location.hint;
+      li.appendChild(hint);
+      
+      // Voeg click event toe
+      li.addEventListener('click', () => {
+        if (li.classList.contains('correct')) return; // Locatie is al correct, dus niet klikken
 
-  if(distance <= currentLocation.radius){
-      alert("Goed! Binnen het gebied!");
-      score += 1;
-      document.getElementById('score').innerText = "Score: " + score;
-      nextRound();
-  } else {
-      alert("Fout! Probeer het nog eens.");
-  }
-});
+        // Als deze locatie al geselecteerd is, dehint uitklappen
+        if (li.classList.contains('selected')) {
+          li.classList.remove('selected');
+          hint.classList.remove('show');
+          currentLocation = null;
+          document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
+        } else {
+          // Sla de vorige geselecteerde locatie op
+          document.querySelectorAll('.location-item').forEach(item => item.classList.remove('selected'));
+          document.querySelectorAll('.hint-text').forEach(h => h.classList.remove('show'));
 
-// ----------------- HELPER FUNCTIES -----------------
-function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2) {
-  let R = 6371;
-  let dLat = deg2rad(lat2-lat1);
-  let dLon = deg2rad(lon2-lon1);
-  let a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-          Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-          Math.sin(dLon/2) * Math.sin(dLon/2);
-  let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
+          // Toon de geselecteerde locatie
+          li.classList.add('selected');
+          hint.classList.add('show');
+          currentLocation = location;
 
-function deg2rad(deg) {
-  return deg * (Math.PI/180);
-}
+          // Toon de hint van de geselecteerde locatie en focus op de kaart
+          document.getElementById('hint-container').innerText = currentLocation.hint;
+          map.setView([currentLocation.lat, currentLocation.lng], 15); // Zet de kaart naar de locatie
+        }
+      });
 
-// ----------------- VOLGENDE RONDE -----------------
-function nextRound(){
-  currentLocation = locations[Math.floor(Math.random() * locations.length)];
-  document.getElementById('hint-container').innerText = currentLocation.hint;
-  map.setView([20, 0], 2); // reset zoom en center
-}
+      locationsList.appendChild(li);
+    });
 
-</script>
+    // ----------------- CLICK EVENT OP DE KAART -----------------
+    map.on('click', function(e) {
+      if (!currentLocation) return; // Check of er een locatie is geselecteerd
+
+      let guessedLat = e.latlng.lat;
+      let guessedLng = e.latlng.lng;
+
+      let distance = getDistanceFromLatLonInKm(
+        currentLocation.lat,
+        currentLocation.lng,
+        guessedLat,
+        guessedLng
+      );
+
+      if(distance <= currentLocation.radius){
+          alert("Goed! Binnen het gebied!");
+          score += 1;
+          document.getElementById('score').innerText = "Score: " + score;
+
+          // Maak de geselecteerde locatie groen met vinkje
+          const locationItem = Array.from(locationsList.getElementsByClassName('location-item')).find(item => item.innerText.includes(currentLocation.name));
+          locationItem.classList.add('correct');
+          locationItem.innerHTML += ' <span class="checkmark">✔</span>'; // Voeg een vinkje toe
+
+          // Verberg de hint en reset de geselecteerde locatie
+          document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
+          nextRound();
+      } else {
+          alert("Fout! Probeer het nog eens.");
+      }
+    });
+
+    // ----------------- HELPER FUNCTIES -----------------
+    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+      let R = 6371;
+      let dLat = deg2rad(lat2 - lat1);
+      let dLon = deg2rad(lon2 - lon1);
+      let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function deg2rad(deg) {
+      return deg * (Math.PI / 180);
+    }
+
+    // ----------------- VOLGENDE RONDE -----------------
+    function nextRound() {
+      currentLocation = null; // Reset de locatie
+      document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
+      map.setView([20, 0], 2); // Reset zoom en center
+    }
+
+  </script>
 </body>
 </html>
