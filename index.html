@@ -92,8 +92,16 @@
   </div>
 
   <audio id="congratulations-sound" src="sound.mp3" preload="auto"></audio>
-  <img id="congratulations-image" src="image.jpg"
-    style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover;" />
+  <img id="congratulations-image" src="image.png"
+     style="display:none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: 9999;"> <!-- Zorg dat het boven alles staat -->
+
 
 
   <div id="map"></div>
@@ -415,11 +423,11 @@
     document.getElementById('reset-button').addEventListener('click', function () {
       // Reset de score
       // Reset de lijst van correcte locaties
-      
+
       localStorage.removeItem('score')
       score = 0;
       document.getElementById('score').innerText = "Score: " + score;
-      
+
       localStorage.removeItem('correctLocations');
       correctLocations.length = 0;
       score = correctLocations.length;
@@ -431,7 +439,7 @@
         const checkmark = item.querySelector('.checkmark');
         if (checkmark) checkmark.remove();
       });
-      
+
       // Reset de kaart en hint
       map.setView([20, 0], 2);  // Reset de kaart naar de standaard locatie
       document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
@@ -440,25 +448,26 @@
 
     function nextRound() {
       currentLocation = null; // Reset de locatie
-      document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
+      const hintContainer = document.getElementById('hint-container');
+      if (hintContainer) {
+        hintContainer.innerText = "Selecteer een locatie om te beginnen.";
+      }
       map.setView([20, 0], 2); // Reset zoom en center
 
       // Check of alle vragen correct beantwoord zijn
-      if (correctLocations.length === locations.length) {
-        // Als alle locaties correct zijn, speel een geluid af en toon een afbeelding
+      console.log('score: ' + score)
+      console.log(locations.length)
+      if (score === locations.length) {
         const congratulationsSound = document.getElementById('congratulations-sound');
         const congratulationsImage = document.getElementById('congratulations-image');
 
-        // Speel het geluid af
-        congratulationsSound.play();
-
-        // Toon de afbeelding in volledig scherm
-        congratulationsImage.style.display = 'block';
-
-        // Voeg een timer toe om de afbeelding na enkele seconden te verbergen (optioneel)
-        setTimeout(() => {
-          congratulationsImage.style.display = 'none';  // Verberg de afbeelding na 5 seconden
-        }, 5000);  // Verberg de afbeelding na 5 seconden
+        if (congratulationsSound) congratulationsSound.play();
+        if (congratulationsImage) {
+          congratulationsImage.style.display = 'block';
+          setTimeout(() => {
+            congratulationsImage.style.display = 'none';
+          }, 5000);
+        }
       }
     }
 
