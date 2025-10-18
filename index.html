@@ -85,6 +85,7 @@
   </div>
 
   <div id="map"></div>
+    <div id="score">Score: 0</div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
@@ -148,7 +149,7 @@
       },
       {
         name: "Niet de Gamecube maar de?",
-        hint: "Nintendo heeft hier een console van",
+        hint: "Nintendo heeft hier een console van: V2UgZ2FhbiBuYWFyIFNjb3V0aW5nIHRvZQ==",
         lat: 51.529314741564455,
         lng: 4.448739025175779,
         radius: 0.02
@@ -223,56 +224,55 @@
         lng: 174.979046,
         radius: 10
       },
-
-      // {
-      //   name: "Lego",
-      //   hint: "In dit land worden de meeste banden gemaakt",
-      //   lat: 56.02453877107302, 
-      //   lng: 10.521098060541842,
-      //   radius: 300
-      // },
-      // {
-      //   name: "Vliegveld",
-      //   hint: "Sommige vliegvelden liggen dicht bij de centrum van de stad waar het vliegveld naar vernoemd is. Bijvoorbeeld London City Airport ligt op nog geen 10 km van Londen. Andere vliegvelden zijn misleidend, en liggen ver bij de stad vandaan waar ze naar vernoemd zijn. Wij gaan naar het meest misleidende vliegveld (dat ligt nog circa 135 km hemelsbreed van de stad vandaan)",
-      //   lat: 48.77786604783219, 
-      //   lng: 4.186261187089951,
-      //   radius: 2
-      // },
-      // {
-      //   name: "Spongebob",
-      //   hint: "In deze straat woont spongebob",
-      //   lat: 51.53202603643356, 
-      //   lng: 4.271922364356801,
-      //   radius: 0.2
-      // },
-      // {
-      //   name: "Zuidelijke stad",
-      //   hint: "Dit is de meest zuidelijke stad ter wereld.",
-      //   lat: -54.8088106, 
-      //   lng: -68.3199749,
-      //   radius: 5
-      // },
-      // {
-      //   name: "Eiffeltoren",
-      //   hint: "Een beroemd ijzeren bouwwerk in Parijs, Frankrijk.",
-      //   lat: 48.8584,
-      //   lng: 2.2945,
-      //   radius: 0.3 // km
-      // },
-      // {
-      //   name: "Amsterdam Centraal",
-      //   hint: "Het belangrijkste treinstation in de hoofdstad van Nederland.",
-      //   lat: 52.3780,
-      //   lng: 4.9000,
-      //   radius: 0.3 // km
-      // },
-      // {
-      //   name: "Colosseum",
-      //   hint: "Een oud amfitheater in Rome waar gladiatoren vochten.",
-      //   lat: 41.8902,
-      //   lng: 12.4922,
-      //   radius: 0.3 // km
-      // },
+      {
+        name: "Lego",
+        hint: "In dit land worden de meeste banden gemaakt",
+        lat: 56.02453877107302, 
+        lng: 10.521098060541842,
+        radius: 300
+      },
+      {
+        name: "Vliegveld",
+        hint: "Sommige vliegvelden liggen dicht bij de centrum van de stad waar het vliegveld naar vernoemd is. Bijvoorbeeld London City Airport ligt op nog geen 10 km van Londen. Andere vliegvelden zijn misleidend, en liggen ver bij de stad vandaan waar ze naar vernoemd zijn. Wij gaan naar het meest misleidende vliegveld (dat ligt nog circa 135 km hemelsbreed van de stad vandaan)",
+        lat: 48.77786604783219, 
+        lng: 4.186261187089951,
+        radius: 2
+      },
+      {
+        name: "Spongebob",
+        hint: "In deze straat woont spongebob",
+        lat: 51.53202603643356, 
+        lng: 4.271922364356801,
+        radius: 0.2
+      },
+      {
+        name: "Zuidelijke stad",
+        hint: "Dit is de meest zuidelijke stad ter wereld.",
+        lat: -54.8088106, 
+        lng: -68.3199749,
+        radius: 5
+      },
+      {
+        name: "Eiffeltoren",
+        hint: "Een beroemd ijzeren bouwwerk in Parijs, Frankrijk.",
+        lat: 48.8584,
+        lng: 2.2945,
+        radius: 0.3 // km
+      },
+      {
+        name: "Amsterdam Centraal",
+        hint: "Het belangrijkste treinstation in de hoofdstad van Nederland.",
+        lat: 52.3780,
+        lng: 4.9000,
+        radius: 0.3 // km
+      },
+      {
+        name: "Colosseum",
+        hint: "Een oud amfitheater in Rome waar gladiatoren vochten.",
+        lat: 41.8902,
+        lng: 12.4922,
+        radius: 0.3 // km
+      },
     ];
 
     let score = 0;
