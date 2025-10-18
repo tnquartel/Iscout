@@ -9,6 +9,7 @@
     h2 {
       margin-left: 45px;
     }
+
     #map {
       height: 500px;
       margin-top: 20px;
@@ -77,6 +78,12 @@
 
   <h2>Raad de locatie op basis van de hint!</h2>
 
+  <button id="reset-button"
+    style="position: fixed; top: 10px; right: 10px; font-size: 18px; padding: 10px 15px; background-color: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer;">
+    Reset
+  </button>
+
+
   <!-- Genummerde lijst van locaties -->
   <div id="locations-list">
     <ul>
@@ -84,8 +91,13 @@
     </ul>
   </div>
 
+  <audio id="congratulations-sound" src="sound.mp3" preload="auto"></audio>
+  <img id="congratulations-image" src="image.jpg"
+    style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover;" />
+
+
   <div id="map"></div>
-    <div id="score">Score: 0</div>
+  <div id="score">Score: 0</div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
@@ -225,30 +237,23 @@
         radius: 10
       },
       {
-        name: "Lego",
-        hint: "In dit land worden de meeste banden gemaakt",
-        lat: 56.02453877107302, 
-        lng: 10.521098060541842,
-        radius: 300
-      },
-      {
         name: "Vliegveld",
         hint: "Sommige vliegvelden liggen dicht bij de centrum van de stad waar het vliegveld naar vernoemd is. Bijvoorbeeld London City Airport ligt op nog geen 10 km van Londen. Andere vliegvelden zijn misleidend, en liggen ver bij de stad vandaan waar ze naar vernoemd zijn. Wij gaan naar het meest misleidende vliegveld (dat ligt nog circa 135 km hemelsbreed van de stad vandaan)",
-        lat: 48.77786604783219, 
+        lat: 48.77786604783219,
         lng: 4.186261187089951,
         radius: 2
       },
       {
         name: "Spongebob",
         hint: "In deze straat woont spongebob",
-        lat: 51.53202603643356, 
+        lat: 51.53202603643356,
         lng: 4.271922364356801,
         radius: 0.2
       },
       {
         name: "Zuidelijke stad",
         hint: "Dit is de meest zuidelijke stad ter wereld.",
-        lat: -54.8088106, 
+        lat: -54.8088106,
         lng: -68.3199749,
         radius: 5
       },
@@ -273,9 +278,15 @@
         lng: 12.4922,
         radius: 0.3 // km
       },
+      {
+        name: "Lego",
+        hint: "In dit land worden de meeste banden gemaakt",
+        lat: 56.02453877107302,
+        lng: 10.521098060541842,
+        radius: 300
+      },
     ];
 
-    let score = 0;
     let currentLocation = null;
 
     // ----------------- INIT MAP -----------------
@@ -288,7 +299,14 @@
     const locationsList = document.getElementById('locations-list').getElementsByTagName('ul')[0];
 
     // Laad opgeslagen correcte locaties
+    // Laad correctLocations
     const correctLocations = JSON.parse(localStorage.getItem('correctLocations')) || [];
+
+    // Zet score gelijk aan het aantal correct opgeslagen locaties
+    let score = correctLocations.length;
+
+    // Update score op de pagina
+    document.getElementById('score').innerText = "Score: " + score;
 
     locations.forEach((location, index) => {
       const li = document.createElement('li');
@@ -349,8 +367,6 @@
 
       if (distance <= currentLocation.radius) {
         alert("Goed! Binnen het gebied!");
-        score += 1;
-        document.getElementById('score').innerText = "Score: " + score;
 
         // Maak de geselecteerde locatie groen met vinkje
         const locationItem = Array.from(locationsList.getElementsByClassName('location-item')).find(item => item.innerText.includes(currentLocation.name));
@@ -361,9 +377,19 @@
         correctLocations.push(currentLocation.name);
         localStorage.setItem('correctLocations', JSON.stringify(correctLocations));
 
+        // Update score before storing it in localStorage
+        // score++; // Increase score for each correct location
+        // localStorage.setItem('score', score); // Store the updated score in localStorage
+
+        // Update the score display
+        score = correctLocations.length;
+        document.getElementById('score').innerText = "Score: " + score;
+
+        // Proceed to the next round
+        nextRound();
+
         // Verberg de hint en reset de geselecteerde locatie
         document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
-        nextRound();
       } else {
         alert("Fout! Probeer het nog eens.");
       }
@@ -385,11 +411,55 @@
       return deg * (Math.PI / 180);
     }
 
-    // ----------------- VOLGENDE RONDE -----------------
+    // ----------------- RESET FUNCTIONALITEIT -----------------
+    document.getElementById('reset-button').addEventListener('click', function () {
+      // Reset de score
+      // Reset de lijst van correcte locaties
+      
+      localStorage.removeItem('score')
+      score = 0;
+      document.getElementById('score').innerText = "Score: " + score;
+      
+      localStorage.removeItem('correctLocations');
+      correctLocations.length = 0;
+      score = correctLocations.length;
+      // Verwijder de groene markering en vinkjes van alle locaties
+      const locationItems = document.querySelectorAll('.location-item');
+      locationItems.forEach(item => {
+        item.classList.remove('correct');
+        item.classList.remove('selected');
+        const checkmark = item.querySelector('.checkmark');
+        if (checkmark) checkmark.remove();
+      });
+      
+      // Reset de kaart en hint
+      map.setView([20, 0], 2);  // Reset de kaart naar de standaard locatie
+      document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
+    });
+
+
     function nextRound() {
       currentLocation = null; // Reset de locatie
       document.getElementById('hint-container').innerText = "Selecteer een locatie om te beginnen.";
       map.setView([20, 0], 2); // Reset zoom en center
+
+      // Check of alle vragen correct beantwoord zijn
+      if (correctLocations.length === locations.length) {
+        // Als alle locaties correct zijn, speel een geluid af en toon een afbeelding
+        const congratulationsSound = document.getElementById('congratulations-sound');
+        const congratulationsImage = document.getElementById('congratulations-image');
+
+        // Speel het geluid af
+        congratulationsSound.play();
+
+        // Toon de afbeelding in volledig scherm
+        congratulationsImage.style.display = 'block';
+
+        // Voeg een timer toe om de afbeelding na enkele seconden te verbergen (optioneel)
+        setTimeout(() => {
+          congratulationsImage.style.display = 'none';  // Verberg de afbeelding na 5 seconden
+        }, 5000);  // Verberg de afbeelding na 5 seconden
+      }
     }
 
   </script>
