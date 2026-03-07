@@ -1,0 +1,143 @@
+'use client'
+
+import { useState } from 'react'
+import { submitDoeOpdracht } from '@/lib/actions/game'
+import type { DoeOpdracht, DoeInzending } from '@/lib/types'
+
+interface Props {
+  opdracht: DoeOpdracht
+  inzending: DoeInzending | null
+}
+
+function StatusBadge({ status }: { status: DoeInzending['status'] | null }) {
+  if (!status) {
+    return (
+      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-900 text-blue-300">
+        Beschikbaar
+      </span>
+    )
+  }
+  if (status === 'pending') {
+    return (
+      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-orange-900 text-orange-300">
+        In behandeling
+      </span>
+    )
+  }
+  if (status === 'approved') {
+    return (
+      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-900 text-green-300">
+        Goedgekeurd ✓
+      </span>
+    )
+  }
+  return (
+    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-900 text-red-300">
+      Afgekeurd
+    </span>
+  )
+}
+
+function isMediaUrl(url: string): { type: 'image' | 'video' | 'other'; url: string } {
+  const lower = url.toLowerCase()
+  if (/\.(mp4|webm|ogg|mov)(\?.*)?$/.test(lower)) return { type: 'video', url }
+  if (/\.(jpg|jpeg|png|gif|webp|avif)(\?.*)?$/.test(lower)) return { type: 'image', url }
+  return { type: 'other', url }
+}
+
+export default function OpdrachtCard({ opdracht, inzending }: Props) {
+  const [loading, setLoading] = useState(false)
+  const [localInzending, setLocalInzending] = useState(inzending)
+
+  const status = localInzending?.status || null
+  const isApproved = status === 'approved'
+  const isPending = status === 'pending'
+  const canSubmit = !isPending && !isApproved
+
+  async function handleSubmit() {
+    setLoading(true)
+    const result = await submitDoeOpdracht(opdracht.id)
+    if (!result.error) {
+      setLocalInzending({
+        id: 'temp',
+        opdracht_id: opdracht.id,
+        status: 'pending',
+        credits_awarded: null,
+        submitted_at: new Date().toISOString(),
+        reviewed_at: null,
+        note: null,
+      })
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div
+      className={`rounded-xl border p-5 transition-all ${
+        isApproved
+          ? 'bg-slate-800/50 border-slate-700 opacity-60'
+          : 'bg-slate-800 border-slate-700'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <h2 className="text-lg font-bold text-white">{opdracht.title}</h2>
+        <StatusBadge status={status} />
+      </div>
+
+      <p className="text-slate-300 text-sm mb-4">{opdracht.description}</p>
+
+      {/* Example media */}
+      {opdracht.example_media_url && (() => {
+        const media = isMediaUrl(opdracht.example_media_url)
+        if (media.type === 'image') {
+          return (
+            <img
+              src={media.url}
+              alt="Voorbeeld"
+              className="rounded-lg mb-4 max-h-48 object-cover w-full"
+            />
+          )
+        }
+        if (media.type === 'video') {
+          return (
+            <video
+              src={media.url}
+              controls
+              className="rounded-lg mb-4 max-h-48 w-full"
+            />
+          )
+        }
+        return null
+      })()}
+
+      {/* Rejection note */}
+      {status === 'rejected' && localInzending?.note && (
+        <div className="bg-red-900/30 border border-red-800 rounded-lg px-3 py-2 text-sm text-red-300 mb-4">
+          <strong>Reden afkeuring:</strong> {localInzending.note}
+        </div>
+      )}
+
+      {/* Credits awarded */}
+      {status === 'approved' && localInzending?.credits_awarded != null && (
+        <div className="text-green-400 text-sm mb-4 font-medium">
+          +{localInzending.credits_awarded} credits verdiend
+        </div>
+      )}
+
+      {/* Submit button */}
+      {!isApproved && (
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit || loading}
+          className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors ${
+            canSubmit && !loading
+              ? 'bg-yellow-500 hover:bg-yellow-400 text-slate-900 active:bg-yellow-600'
+              : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+          }`}
+        >
+          {loading ? 'Bezig...' : isPending ? 'Wacht op beoordeling' : 'Indienen'}
+        </button>
+      )}
+    </div>
+  )
+}
