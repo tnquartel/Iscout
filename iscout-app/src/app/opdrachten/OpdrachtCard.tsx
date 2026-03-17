@@ -107,7 +107,16 @@ export default function OpdrachtCard({ opdracht, inzending }: Props) {
             />
           )
         }
-        return null
+        return (
+          <a
+            href={media.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block mb-4 text-yellow-400 underline break-all hover:text-yellow-300 text-sm"
+          >
+            {media.url}
+          </a>
+        )
       })()}
 
       {/* Rejection note */}
