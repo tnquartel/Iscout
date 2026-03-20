@@ -13,7 +13,7 @@ export default async function ReisvragenPage() {
       .from('reisvragen_safe')
       .select('*')
       .eq('is_active', true)
-      .order('created_at', { ascending: false }),
+      .order('order_index', { ascending: true }),
     supabase.from('gespeelde_reisvragen').select('*'),
   ])
 
@@ -35,7 +35,7 @@ export default async function ReisvragenPage() {
     const bCorrect = b.gespeeld?.status === 'answered_correct'
     if (aCorrect && !bCorrect) return 1
     if (!aCorrect && bCorrect) return -1
-    return 0
+    return (a.order_index ?? 999) - (b.order_index ?? 999)  // ← aanpassen
   })
 
   return (

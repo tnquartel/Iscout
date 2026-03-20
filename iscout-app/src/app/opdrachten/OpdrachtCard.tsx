@@ -7,6 +7,7 @@ import type { DoeOpdracht, DoeInzending } from '@/lib/types'
 interface Props {
   opdracht: DoeOpdracht
   inzending: DoeInzending | null
+  number: number
 }
 
 function StatusBadge({ status }: { status: DoeInzending['status'] | null }) {
@@ -45,7 +46,7 @@ function isMediaUrl(url: string): { type: 'image' | 'video' | 'other'; url: stri
   return { type: 'other', url }
 }
 
-export default function OpdrachtCard({ opdracht, inzending }: Props) {
+export default function OpdrachtCard({ opdracht, inzending, number }: Props) {
   const [loading, setLoading] = useState(false)
   const [localInzending, setLocalInzending] = useState(inzending)
   const [expanded, setExpanded] = useState(false)
@@ -74,11 +75,10 @@ export default function OpdrachtCard({ opdracht, inzending }: Props) {
 
   return (
     <div
-      className={`rounded-xl border transition-all ${
-        isApproved
+      className={`rounded-xl border transition-all ${isApproved
           ? 'bg-slate-800/50 border-slate-700 opacity-60'
           : 'bg-slate-800 border-slate-700'
-      }`}
+        }`}
     >
       {/* Header — altijd zichtbaar */}
       <button
@@ -86,13 +86,14 @@ export default function OpdrachtCard({ opdracht, inzending }: Props) {
         className="w-full flex items-center justify-between gap-3 p-5 text-left"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <h2 className="text-lg font-bold text-white truncate">{opdracht.title}</h2>
+          <h2 className="text-lg font-bold text-white truncate">
+            <span className="text-yellow-400 mr-2">#{number}</span>{opdracht.title}
+          </h2>
           <StatusBadge status={status} />
         </div>
         <span
-          className={`text-slate-400 text-xl flex-shrink-0 transition-transform duration-200 ${
-            expanded ? 'rotate-180' : ''
-          }`}
+          className={`text-slate-400 text-xl flex-shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''
+            }`}
         >
           ▾
         </span>
@@ -155,11 +156,10 @@ export default function OpdrachtCard({ opdracht, inzending }: Props) {
             <button
               onClick={handleSubmit}
               disabled={!canSubmit || loading}
-              className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors ${
-                canSubmit && !loading
+              className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors ${canSubmit && !loading
                   ? 'bg-yellow-500 hover:bg-yellow-400 text-slate-900 active:bg-yellow-600'
                   : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-              }`}
+                }`}
             >
               {loading ? 'Bezig...' : isPending ? 'Wacht op beoordeling' : 'Indienen'}
             </button>

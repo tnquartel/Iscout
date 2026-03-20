@@ -4,11 +4,13 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { haversineDistance } from '@/lib/haversine'
 import { revalidatePath } from 'next/cache'
 
+const COOLDOWN_MS = 3 * 60 * 1000   // 3 minuten
+const MAX_WRONG   = 3                 // na 3 foute pogingen mag je skippen
+
 // Submit a doe-opdracht (marks as pending)
 export async function submitDoeOpdracht(opdrachtId: string) {
   const supabase = createServiceClient()
 
-  // Check if already submitted and pending/approved
   const { data: existing } = await supabase
     .from('doe_inzendingen')
     .select('id, status')
@@ -31,7 +33,7 @@ export async function submitDoeOpdracht(opdrachtId: string) {
   return { success: true }
 }
 
-// Unlock a reisvraag (deduct credits)
+// Unlock a reisvraag — only allowed if previous question is done (correct or skipped)
 export async function unlockReisvraag(vraagId: string) {
   const supabase = createServiceClient()
 
@@ -46,17 +48,42 @@ export async function unlockReisvraag(vraagId: string) {
     return { error: 'Al ontgrendeld' }
   }
 
-  // Get question cost
+  // Get this question's order_index
   const { data: vraag, error: vraagError } = await supabase
     .from('reisvragen')
-    .select('id, cost_credits, is_active')
+    .select('id, cost_credits, is_active, order_index')
     .eq('id', vraagId)
     .single()
 
   if (vraagError || !vraag) return { error: 'Vraag niet gevonden' }
   if (!vraag.is_active) return { error: 'Vraag is niet actief' }
 
-  // Check and deduct credits atomically
+  // Check that previous question is done (correct or skipped)
+  if (vraag.order_index && vraag.order_index > 1) {
+    const { data: prevVraag } = await supabase
+      .from('reisvragen')
+      .select('id')
+      .eq('order_index', vraag.order_index - 1)
+      .eq('is_active', true)
+      .single()
+
+    if (prevVraag) {
+      const { data: prevGespeeld } = await supabase
+        .from('gespeelde_reisvragen')
+        .select('status, skipped')
+        .eq('vraag_id', prevVraag.id)
+        .single()
+
+      const prevDone =
+        prevGespeeld?.status === 'answered_correct' || prevGespeeld?.skipped === true
+
+      if (!prevDone) {
+        return { error: 'Beantwoord eerst de vorige vraag' }
+      }
+    }
+  }
+
+  // Check and deduct credits
   const { data: gameState } = await supabase
     .from('game_state')
     .select('credits')
@@ -68,7 +95,6 @@ export async function unlockReisvraag(vraagId: string) {
     return { error: 'Niet genoeg credits' }
   }
 
-  // Deduct credits
   const { error: creditError } = await supabase
     .from('game_state')
     .update({ credits: gameState.credits - vraag.cost_credits })
@@ -76,13 +102,11 @@ export async function unlockReisvraag(vraagId: string) {
 
   if (creditError) return { error: creditError.message }
 
-  // Create gespeelde_reisvraag record
   const { error: insertError } = await supabase
     .from('gespeelde_reisvragen')
-    .insert({ vraag_id: vraagId, status: 'unlocked' })
+    .insert({ vraag_id: vraagId, status: 'unlocked', wrong_answer_count: 0, skipped: false })
 
   if (insertError) {
-    // Rollback credits
     await supabase
       .from('game_state')
       .update({ credits: gameState.credits })
@@ -94,7 +118,7 @@ export async function unlockReisvraag(vraagId: string) {
   return { success: true }
 }
 
-// Check a reisvraag answer (server-side only, never exposes lat/lng/radius)
+// Check a reisvraag answer (server-side only)
 export async function checkReisvraagAnswer(
   vraagId: string,
   guessLat: number,
@@ -102,7 +126,6 @@ export async function checkReisvraagAnswer(
 ) {
   const supabase = createServiceClient()
 
-  // Get full question including sensitive data (server-side only)
   const { data: vraag, error: vraagError } = await supabase
     .from('reisvragen')
     .select('id, lat, lng, radius_km, points_awarded')
@@ -111,30 +134,28 @@ export async function checkReisvraagAnswer(
 
   if (vraagError || !vraag) return { error: 'Vraag niet gevonden' }
 
-  // Get gespeelde status
   const { data: gespeeld } = await supabase
     .from('gespeelde_reisvragen')
-    .select('id, status, wrong_answer_at')
+    .select('id, status, wrong_answer_at, wrong_answer_count, skipped')
     .eq('vraag_id', vraagId)
     .single()
 
   if (!gespeeld) return { error: 'Vraag niet ontgrendeld' }
   if (gespeeld.status === 'answered_correct') return { error: 'Al correct beantwoord' }
+  if (gespeeld.skipped) return { error: 'Vraag is geskipped' }
 
-  // Check cooldown
+  // Check cooldown (3 minuten)
   if (gespeeld.status === 'answered_wrong' && gespeeld.wrong_answer_at) {
-    const cooldownEnd = new Date(gespeeld.wrong_answer_at).getTime() + 10 * 60 * 1000
+    const cooldownEnd = new Date(gespeeld.wrong_answer_at).getTime() + COOLDOWN_MS
     if (Date.now() < cooldownEnd) {
       return { error: 'Nog in cooldown', cooldownEnd }
     }
   }
 
-  // Calculate distance (server-side)
   const distance = haversineDistance(guessLat, guessLng, vraag.lat, vraag.lng)
   const isCorrect = distance <= vraag.radius_km
 
   if (isCorrect) {
-    // Add points to game_state
     const { data: gameState } = await supabase
       .from('game_state')
       .select('points')
@@ -148,7 +169,6 @@ export async function checkReisvraagAnswer(
         .eq('id', 1)
     }
 
-    // Update gespeelde_reisvraag
     await supabase
       .from('gespeelde_reisvragen')
       .update({ status: 'answered_correct', answered_at: new Date().toISOString() })
@@ -156,31 +176,60 @@ export async function checkReisvraagAnswer(
 
     revalidatePath('/reisvragen')
     revalidatePath(`/reisvragen/${vraagId}`)
-    return { correct: true, distance: Math.round(distance) }
+    return { correct: true }
   } else {
-    // Wrong answer - start cooldown
+    const newCount = (gespeeld.wrong_answer_count ?? 0) + 1
+
     await supabase
       .from('gespeelde_reisvragen')
       .update({
         status: 'answered_wrong',
         wrong_answer_at: new Date().toISOString(),
+        wrong_answer_count: newCount,
       })
       .eq('vraag_id', vraagId)
 
     revalidatePath(`/reisvragen/${vraagId}`)
     return {
       correct: false,
-      distance: Math.round(distance),
-      cooldownEnd: Date.now() + 10 * 60 * 1000,
+      cooldownEnd: Date.now() + COOLDOWN_MS,
+      wrongCount: newCount,
+      canSkip: newCount >= MAX_WRONG,
     }
   }
+}
+
+// Skip a reisvraag (only after 3 wrong answers)
+export async function skipReisvraag(vraagId: string) {
+  const supabase = createServiceClient()
+
+  const { data: gespeeld } = await supabase
+    .from('gespeelde_reisvragen')
+    .select('id, wrong_answer_count, skipped, status')
+    .eq('vraag_id', vraagId)
+    .single()
+
+  if (!gespeeld) return { error: 'Vraag niet ontgrendeld' }
+  if (gespeeld.skipped) return { error: 'Al geskipped' }
+  if (gespeeld.status === 'answered_correct') return { error: 'Al correct beantwoord' }
+  if ((gespeeld.wrong_answer_count ?? 0) < MAX_WRONG) {
+    return { error: 'Nog niet 3 keer fout beantwoord' }
+  }
+
+  await supabase
+    .from('gespeelde_reisvragen')
+    .update({ skipped: true })
+    .eq('vraag_id', vraagId)
+
+  revalidatePath('/reisvragen')
+  revalidatePath(`/reisvragen/${vraagId}`)
+  return { success: true }
 }
 
 // Admin: approve doe inzending
 export async function approveDoeInzending(inzendingId: string, credits: number) {
   const supabase = createServiceClient()
 
-  // Update inzending status
   const { error } = await supabase
     .from('doe_inzendingen')
     .update({
@@ -192,7 +241,6 @@ export async function approveDoeInzending(inzendingId: string, credits: number) 
 
   if (error) return { error: error.message }
 
-  // Add credits to game_state
   const { data: gameState } = await supabase
     .from('game_state')
     .select('credits')
@@ -250,13 +298,8 @@ export async function updateGameState(credits: number, points: number) {
 export async function resetGame() {
   const supabase = createServiceClient()
 
-  // Reset game state
   await supabase.from('game_state').update({ credits: 0, points: 0 }).eq('id', 1)
-
-  // Reset all inzendingen to pending would be weird - just delete them
   await supabase.from('doe_inzendingen').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-
-  // Delete all gespeelde_reisvragen
   await supabase.from('gespeelde_reisvragen').delete().neq('id', '00000000-0000-0000-0000-000000000000')
 
   revalidatePath('/')

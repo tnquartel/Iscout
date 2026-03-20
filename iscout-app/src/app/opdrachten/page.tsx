@@ -11,7 +11,7 @@ export default async function OpdrachtenPage() {
       .from('doe_opdrachten')
       .select('*')
       .eq('is_active', true)
-      .order('created_at', { ascending: false }),
+      .order('order_index', { ascending: true }),
     supabase
       .from('doe_inzendingen')
       .select('*')
@@ -36,7 +36,7 @@ export default async function OpdrachtenPage() {
     const bStatus = statusMap.get(b.id)?.status
     if (aStatus === 'approved' && bStatus !== 'approved') return 1
     if (aStatus !== 'approved' && bStatus === 'approved') return -1
-    return 0
+    return (a.order_index ?? 999) - (b.order_index ?? 999)  // ← aanpassen
   })
 
   return (
@@ -54,11 +54,12 @@ export default async function OpdrachtenPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {sorted.map((opdracht) => (
+            {sorted.map((opdracht, index) => (
               <OpdrachtCard
                 key={opdracht.id}
                 opdracht={opdracht}
                 inzending={statusMap.get(opdracht.id) || null}
+                number={opdracht.order_index ?? index + 1}  // ← toevoegen
               />
             ))}
           </div>

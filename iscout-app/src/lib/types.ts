@@ -10,6 +10,7 @@ export interface DoeOpdracht {
   description: string
   example_media_url: string | null
   is_active: boolean
+  order_index: number | null
   created_at: string
 }
 
@@ -32,6 +33,7 @@ export interface ReisvraagSafe {
   cost_credits: number
   points_awarded: number
   is_active: boolean
+  order_index: number | null
   created_at: string
 }
 
@@ -50,6 +52,8 @@ export interface GespeeldeReisvraag {
   unlocked_at: string
   answered_at: string | null
   reisvragen?: ReisvraagSafe
+  wrong_answer_count: number
+  skipped: boolean
 }
 
 export type ReisvraagWithStatus = ReisvraagSafe & {
