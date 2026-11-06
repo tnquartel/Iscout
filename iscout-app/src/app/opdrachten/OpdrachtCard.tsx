@@ -87,7 +87,7 @@ export default function OpdrachtCard({ opdracht, inzending, number }: Props) {
       >
         <div className="flex items-center gap-3 min-w-0">
           <h2 className="text-lg font-bold text-white truncate">
-            <span className="text-yellow-400 mr-2">#{number}</span>{opdracht.title}
+            <span className="text-yellow-400 mr-2">#{number - 1}</span>{opdracht.title}
           </h2>
           <StatusBadge status={status} />
         </div>
