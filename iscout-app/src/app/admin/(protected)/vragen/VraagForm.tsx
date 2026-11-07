@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
-import { createVraag, updateVraag, uploadVraagImage } from '@/lib/actions/admin'
+import { createVraag, updateVraag } from '@/lib/actions/admin'
 
 const PreviewMap = dynamic(() => import('./PreviewMap'), {
   ssr: false,
   loading: () => <div className="h-40 bg-slate-700 rounded-xl animate-pulse" />,
 })
-const ImagePickerMap = dynamic(() => import('../ImagePickerMap'), {
+const ImagePickerMap = dynamic(() => import('./ImagePickerMap'), {
   ssr: false,
   loading: () => <div className="h-64 bg-slate-700 rounded-xl animate-pulse" />,
 })
@@ -58,7 +58,8 @@ export default function VraagForm({ initial, onCancel }: Props) {
   const [radiusPct, setRadiusPct] = useState(
     initial?.answer_radius ? (initial.answer_radius * 100).toString() : '5'
   )
-  const [uploading, setUploading] = useState(false)
+  const [urlInput, setUrlInput] = useState(initial?.image_url || '')
+  const [urlLoading, setUrlLoading] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,44 +69,31 @@ export default function VraagForm({ initial, onCancel }: Props) {
   const showPreview = mapType === 'world' && !isNaN(parsedLat) && !isNaN(parsedLng)
   const parsedRadiusPct = parseFloat(radiusPct)
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // Afbeelding via een URL van het internet: laad hem om de afmetingen te bepalen
+  async function handleUrl() {
+    const url = urlInput.trim()
     setError(null)
-    setUploading(true)
-
-    // Afmetingen uitlezen
+    if (!/^https:\/\//i.test(url)) {
+      setError('Gebruik een link die met https:// begint')
+      return
+    }
+    setUrlLoading(true)
     const dims = await new Promise<{ w: number; h: number } | null>((resolve) => {
       const img = new Image()
-      const url = URL.createObjectURL(file)
-      img.onload = () => {
-        resolve({ w: img.naturalWidth, h: img.naturalHeight })
-        URL.revokeObjectURL(url)
-      }
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight })
       img.onerror = () => resolve(null)
       img.src = url
     })
+    setUrlLoading(false)
     if (!dims) {
-      setError('Kon de afbeelding niet lezen')
-      setUploading(false)
+      setError('Kon de afbeelding niet laden. Is de link een directe afbeeldingslink (en niet geblokkeerd)?')
       return
     }
-
-    const fd = new FormData()
-    fd.append('file', file)
-    const res = await uploadVraagImage(fd)
-    if (res.error || !res.url) {
-      setError(res.error || 'Upload mislukt')
-      setUploading(false)
-      return
-    }
-
-    setImageUrl(res.url)
+    setImageUrl(url)
     setImageW(dims.w)
     setImageH(dims.h)
-    setAnsX(null) // nieuw plaatje → punt opnieuw kiezen
+    setAnsX(null)
     setAnsY(null)
-    setUploading(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -245,15 +233,24 @@ export default function VraagForm({ initial, onCancel }: Props) {
       {mapType === 'image' && (
         <>
           <div>
-            <label className={labelCls}>Afbeelding (PNG/JPG/WebP)</label>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={handleFile}
-              disabled={uploading}
-              className="w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-600 file:px-4 file:py-2 file:text-white hover:file:bg-slate-500"
-            />
-            {uploading && <p className="text-slate-400 text-xs mt-1">Uploaden...</p>}
+            <label className={labelCls}>Afbeeldings-URL</label>
+            <div className="flex gap-2">
+              <input
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                className={inputCls}
+                placeholder="https://..."
+                inputMode="url"
+              />
+              <button
+                type="button"
+                onClick={handleUrl}
+                disabled={urlLoading || !urlInput.trim()}
+                className="shrink-0 bg-slate-600 hover:bg-slate-500 text-white px-4 rounded-xl text-sm disabled:opacity-50"
+              >
+                {urlLoading ? 'Laden...' : 'Laden'}
+              </button>
+            </div>
           </div>
 
           {imageUrl && imageW > 0 && (
@@ -301,7 +298,7 @@ export default function VraagForm({ initial, onCancel }: Props) {
       </div>
 
       <div className="flex gap-3">
-        <button type="submit" disabled={loading || uploading}
+        <button type="submit" disabled={loading}
           className="bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-bold px-6 py-2.5 rounded-xl text-sm disabled:opacity-50">
           {loading ? 'Opslaan...' : initial ? 'Opslaan' : 'Toevoegen'}
         </button>
