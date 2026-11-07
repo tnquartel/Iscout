@@ -76,8 +76,8 @@ export default function OpdrachtCard({ opdracht, inzending, number }: Props) {
   return (
     <div
       className={`rounded-xl border transition-all ${isApproved
-          ? 'bg-slate-800/50 border-slate-700 opacity-60'
-          : 'bg-slate-800 border-slate-700'
+        ? 'bg-slate-800/50 border-slate-700 opacity-60'
+        : 'bg-slate-800 border-slate-700'
         }`}
     >
       {/* Header — altijd zichtbaar */}
@@ -102,7 +102,9 @@ export default function OpdrachtCard({ opdracht, inzending, number }: Props) {
       {/* Uitklapbaar deel */}
       {expanded && (
         <div className="px-5 pb-5">
-          <p className="text-slate-300 text-sm mb-4">{opdracht.description}</p>
+          <p className="text-slate-300 text-sm mb-4 whitespace-pre-wrap break-words">
+            {opdracht.description}
+          </p>
 
           {/* Example media */}
           {opdracht.example_media_url && (() => {
@@ -157,8 +159,8 @@ export default function OpdrachtCard({ opdracht, inzending, number }: Props) {
               onClick={handleSubmit}
               disabled={!canSubmit || loading}
               className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors ${canSubmit && !loading
-                  ? 'bg-yellow-500 hover:bg-yellow-400 text-slate-900 active:bg-yellow-600'
-                  : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                ? 'bg-yellow-500 hover:bg-yellow-400 text-slate-900 active:bg-yellow-600'
+                : 'bg-slate-700 text-slate-500 cursor-not-allowed'
                 }`}
             >
               {loading ? 'Bezig...' : isPending ? 'Wacht op beoordeling' : 'Indienen'}
