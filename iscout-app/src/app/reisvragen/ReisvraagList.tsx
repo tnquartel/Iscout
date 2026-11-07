@@ -10,6 +10,8 @@ interface Props {
   credits: number
 }
 
+const COOLDOWN_MS = 3 * 60 * 1000
+
 function CooldownTimer({ wrongAnswerAt, cooldownMs }: { wrongAnswerAt: string; cooldownMs: number }) {
   const [remaining, setRemaining] = useState(0)
 
@@ -74,7 +76,7 @@ function StatusBadge({ vraag, credits, isLocked }: { vraag: ReisvraagWithStatus;
   }
 
   if (g.status === 'answered_wrong' && g.wrong_answer_at) {
-    return <CooldownTimer wrongAnswerAt={g.wrong_answer_at} cooldownMs={3 * 60 * 1000} />
+    return <CooldownTimer wrongAnswerAt={g.wrong_answer_at} cooldownMs={COOLDOWN_MS} />
   }
 
   return (
@@ -87,6 +89,14 @@ function StatusBadge({ vraag, credits, isLocked }: { vraag: ReisvraagWithStatus;
 export default function ReisvraagList({ vragen, credits }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
+
+  // Huidige tijd als state, zodat Date.now() niet tijdens het renderen wordt aangeroepen.
+  // Tikt elke seconde, zodat vragen vanzelf klikbaar worden als de cooldown afloopt.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   // Bepaal welke vragen geblokkeerd zijn (vorige moet correct of geskipped zijn)
   function isLocked(index: number): boolean {
@@ -106,8 +116,8 @@ export default function ReisvraagList({ vragen, credits }: Props) {
 
     // Check cooldown
     if (g?.status === 'answered_wrong' && g.wrong_answer_at) {
-      const end = new Date(g.wrong_answer_at).getTime() + 3 * 60 * 1000
-      if (Date.now() < end) return
+      const end = new Date(g.wrong_answer_at).getTime() + COOLDOWN_MS
+      if (now < end) return
     }
 
     if (!g) {
@@ -142,7 +152,7 @@ export default function ReisvraagList({ vragen, credits }: Props) {
         const inCooldown =
           g?.status === 'answered_wrong' &&
           g.wrong_answer_at &&
-          Date.now() < new Date(g.wrong_answer_at).getTime() + 3 * 60 * 1000
+          now < new Date(g.wrong_answer_at).getTime() + COOLDOWN_MS
 
         let isClickable = true
         if (locked) isClickable = false

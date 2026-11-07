@@ -35,6 +35,10 @@ export interface ReisvraagSafe {
   is_active: boolean
   order_index: number | null
   created_at: string
+  map_type: 'world' | 'image'
+  image_url: string | null
+  image_width: number | null
+  image_height: number | null
 }
 
 // Full version with sensitive data (server-only)

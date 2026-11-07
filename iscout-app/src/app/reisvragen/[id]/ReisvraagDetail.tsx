@@ -9,13 +9,20 @@ import type { ReisvraagSafe, GespeeldeReisvraag } from '@/lib/types'
 const COOLDOWN_MS = 3 * 60 * 1000
 const MAX_WRONG = 3
 
+const mapLoading = () => (
+  <div className="flex-1 bg-slate-800 rounded-xl flex items-center justify-center h-full">
+    <span className="text-slate-400">Kaart laden...</span>
+  </div>
+)
+
 const MapComponent = dynamic(() => import('./MapComponent'), {
   ssr: false,
-  loading: () => (
-    <div className="flex-1 bg-slate-800 rounded-xl flex items-center justify-center">
-      <span className="text-slate-400">Kaart laden...</span>
-    </div>
-  ),
+  loading: mapLoading,
+})
+
+const ImageMap = dynamic(() => import('./ImageMap'), {
+  ssr: false,
+  loading: mapLoading,
 })
 
 interface Props {
@@ -129,6 +136,7 @@ function CooldownDisplay({ wrongAnswerAt, onExpired }: { wrongAnswerAt: string; 
 
 export default function ReisvraagDetail({ vraag, gespeeld }: Props) {
   const [marker, setMarker] = useState<{ lat: number; lng: number } | null>(null)
+  const [imagePos, setImagePos] = useState<{ x: number; y: number } | null>(null)
   const [checking, setChecking] = useState(false)
   const [skipping, setSkipping] = useState(false)
   const [result, setResult] = useState<{
@@ -139,24 +147,36 @@ export default function ReisvraagDetail({ vraag, gespeeld }: Props) {
   } | null>(null)
   const [cooldownExpired, setCooldownExpired] = useState(false)
 
+  const isImageMap =
+    vraag.map_type === 'image' &&
+    !!vraag.image_url &&
+    !!vraag.image_width &&
+    !!vraag.image_height
+  const hasAnswer = isImageMap ? !!imagePos : !!marker
+
   const isCorrect = gespeeld.status === 'answered_correct'
   const isSkipped = gespeeld.skipped === true
   const wrongCount = result?.wrongCount ?? gespeeld.wrong_answer_count ?? 0
   const canSkip = wrongCount >= MAX_WRONG
 
+  // Tijdstip bij het laden van de pagina (Date.now() mag niet direct in render)
+  const [now] = useState(() => Date.now())
+
   const isInCooldown =
     gespeeld.status === 'answered_wrong' &&
     gespeeld.wrong_answer_at &&
-    Date.now() < new Date(gespeeld.wrong_answer_at).getTime() + COOLDOWN_MS
+    now < new Date(gespeeld.wrong_answer_at).getTime() + COOLDOWN_MS
 
   const handleCooldownExpired = useCallback(() => {
     setCooldownExpired(true)
   }, [])
 
   async function handleCheck() {
-    if (!marker) return
+    if (!hasAnswer) return
     setChecking(true)
-    const res = await checkReisvraagAnswer(vraag.id, marker.lat, marker.lng)
+    const res = isImageMap
+      ? await checkReisvraagAnswer(vraag.id, { x: imagePos!.x, y: imagePos!.y })
+      : await checkReisvraagAnswer(vraag.id, { lat: marker!.lat, lng: marker!.lng })
     setChecking(false)
 
     if (res.error) {
@@ -261,14 +281,28 @@ export default function ReisvraagDetail({ vraag, gespeeld }: Props) {
         </>
       )}
 
-      {/* Kaart */}
+      {/* Kaart: wereldkaart of eigen afbeelding */}
       {!isSkipped && (
-        <div className="rounded-xl border border-slate-700" style={{ height: '50vh', minHeight: '300px' }}>
-          <MapComponent
-            onMarkerPlaced={setMarker}
-            marker={marker}
-            blocked={!!mapBlocked}
-          />
+        <div
+          className="rounded-xl border border-slate-700 overflow-hidden"
+          style={{ height: '50vh', minHeight: '300px' }}
+        >
+          {isImageMap ? (
+            <ImageMap
+              imageUrl={vraag.image_url!}
+              width={vraag.image_width!}
+              height={vraag.image_height!}
+              selected={imagePos}
+              onSelect={setImagePos}
+              disabled={!!mapBlocked}
+            />
+          ) : (
+            <MapComponent
+              onMarkerPlaced={setMarker}
+              marker={marker}
+              blocked={!!mapBlocked}
+            />
+          )}
         </div>
       )}
 
@@ -277,14 +311,20 @@ export default function ReisvraagDetail({ vraag, gespeeld }: Props) {
         <div className="flex gap-3">
           <button
             onClick={handleCheck}
-            disabled={!marker || checking || (!!isInCooldown && !cooldownExpired) || !!result?.cooldownEnd}
+            disabled={!hasAnswer || checking || (!!isInCooldown && !cooldownExpired) || !!result?.cooldownEnd}
             className={`flex-1 py-4 rounded-xl font-bold text-base transition-colors ${
-              marker && !checking && (!isInCooldown || cooldownExpired) && !result?.cooldownEnd
+              hasAnswer && !checking && (!isInCooldown || cooldownExpired) && !result?.cooldownEnd
                 ? 'bg-yellow-500 hover:bg-yellow-400 text-slate-900 active:bg-yellow-600'
                 : 'bg-slate-700 text-slate-500 cursor-not-allowed'
             }`}
           >
-            {checking ? 'Controleren...' : marker ? 'Controleer antwoord' : 'Klik op de kaart om een locatie te kiezen'}
+            {checking
+              ? 'Controleren...'
+              : hasAnswer
+                ? 'Controleer antwoord'
+                : isImageMap
+                  ? 'Klik op de afbeelding om een plek te kiezen'
+                  : 'Klik op de kaart om een locatie te kiezen'}
           </button>
         </div>
       )}

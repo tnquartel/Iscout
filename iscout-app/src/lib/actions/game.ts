@@ -7,6 +7,54 @@ import { revalidatePath } from 'next/cache'
 const COOLDOWN_MS = 3 * 60 * 1000   // 3 minuten
 const MAX_WRONG   = 3                 // na 3 foute pogingen mag je skippen
 
+// Antwoord van de speler: wereldkaart (lat/lng) of afbeeldingskaart (x/y, genormaliseerd 0..1)
+export type ReisvraagGuess =
+  | { lat: number; lng: number }
+  | { x: number; y: number }
+
+function isFiniteNumber(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n)
+}
+
+interface VraagForCheck {
+  map_type: string
+  lat: number | null
+  lng: number | null
+  radius_km: number | null
+  image_width: number | null
+  image_height: number | null
+  answer_x: number | null
+  answer_y: number | null
+  answer_radius: number | null
+}
+
+// Geeft true/false voor goed/fout, of null als het antwoord ongeldig is
+function evaluateGuess(vraag: VraagForCheck, guess: unknown): boolean | null {
+  if (!guess || typeof guess !== 'object') return null
+  const g = guess as Record<string, unknown>
+
+  if (vraag.map_type === 'image') {
+    if (!isFiniteNumber(g.x) || !isFiniteNumber(g.y)) return null
+    if (
+      vraag.answer_x == null ||
+      vraag.answer_y == null ||
+      vraag.answer_radius == null ||
+      !vraag.image_width ||
+      !vraag.image_height
+    ) {
+      return null
+    }
+    // Afstand in pixels, zodat de cirkel rond blijft bij niet-vierkante afbeeldingen
+    const dx = (g.x - vraag.answer_x) * vraag.image_width
+    const dy = (g.y - vraag.answer_y) * vraag.image_height
+    return Math.hypot(dx, dy) <= vraag.answer_radius * vraag.image_width
+  }
+
+  if (!isFiniteNumber(g.lat) || !isFiniteNumber(g.lng)) return null
+  if (vraag.lat == null || vraag.lng == null || vraag.radius_km == null) return null
+  return haversineDistance(g.lat, g.lng, vraag.lat, vraag.lng) <= vraag.radius_km
+}
+
 // Submit a doe-opdracht (marks as pending)
 export async function submitDoeOpdracht(opdrachtId: string) {
   const supabase = createServiceClient()
@@ -119,16 +167,15 @@ export async function unlockReisvraag(vraagId: string) {
 }
 
 // Check a reisvraag answer (server-side only)
-export async function checkReisvraagAnswer(
-  vraagId: string,
-  guessLat: number,
-  guessLng: number
-) {
+// guess: { lat, lng } voor wereldkaart-vragen, { x, y } (0..1) voor afbeeldingskaart-vragen
+export async function checkReisvraagAnswer(vraagId: string, guess: ReisvraagGuess) {
   const supabase = createServiceClient()
 
   const { data: vraag, error: vraagError } = await supabase
     .from('reisvragen')
-    .select('id, lat, lng, radius_km, points_awarded')
+    .select(
+      'id, map_type, lat, lng, radius_km, image_width, image_height, answer_x, answer_y, answer_radius, points_awarded'
+    )
     .eq('id', vraagId)
     .single()
 
@@ -152,8 +199,8 @@ export async function checkReisvraagAnswer(
     }
   }
 
-  const distance = haversineDistance(guessLat, guessLng, vraag.lat, vraag.lng)
-  const isCorrect = distance <= vraag.radius_km
+  const isCorrect = evaluateGuess(vraag, guess)
+  if (isCorrect === null) return { error: 'Ongeldig antwoord' }
 
   if (isCorrect) {
     const { data: gameState } = await supabase
